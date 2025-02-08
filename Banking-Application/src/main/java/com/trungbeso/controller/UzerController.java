@@ -2,6 +2,7 @@ package com.trungbeso.controller;
 
 import com.trungbeso.dtos.BankResponse;
 import com.trungbeso.dtos.UzerCreateRequest;
+import com.trungbeso.repositories.IUzerRepository;
 import com.trungbeso.services.IUzerService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class UzerController {
 
 	IUzerService uzerService;
+	IUzerRepository uzerRepository;
 
 	@PostMapping
 	public BankResponse createAccount(@RequestBody UzerCreateRequest request) {
