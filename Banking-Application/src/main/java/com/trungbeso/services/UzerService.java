@@ -2,6 +2,7 @@ package com.trungbeso.services;
 
 import com.trungbeso.dtos.AccountInfo;
 import com.trungbeso.dtos.BankResponse;
+import com.trungbeso.dtos.EmailDetails;
 import com.trungbeso.dtos.UzerCreateRequest;
 import com.trungbeso.entities.Uzer;
 import com.trungbeso.repositories.IUzerRepository;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 public class UzerService implements IUzerService{
 
 	IUzerRepository userRepository;
+	IEmailService emailService;
 
 	@Override
 	public BankResponse create(UzerCreateRequest request) {
@@ -47,6 +49,17 @@ public class UzerService implements IUzerService{
 			  .build();
 
 		newUser = userRepository.save(newUser);
+		// send mail
+		EmailDetails mailRequest = EmailDetails.builder()
+			  .subject("Welcome to out system!!")
+			  .recipient(newUser.getEmail())
+			  .messageBody("Congratulations! Your account has been successfully created! \n Your account detail: \n" +
+				    "Account name: " + newUser.getFirstName() + " " + newUser.getLastName() + " " + newUser.getOtherName()
+				    +"\nAccount Number: " + newUser.getAccountNumber())
+			  .build();
+
+		emailService.sendEmailAlert(mailRequest);
+
 		return BankResponse.builder()
 			  .responseMessage(AccountUtils.ACCOUNT_CREATION_SUCCESS_MESSAGE)
 			  .responseCode(AccountUtils.ACCOUNT_CREATION_SUCCESS_CODE)
