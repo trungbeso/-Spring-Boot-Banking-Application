@@ -27,7 +27,7 @@ public class UzerService implements IUzerService{
 			return BankResponse.builder()
 				  .responseMessage(AccountUtils.ACCOUNT_EXISTS_MESSAGE)
 				  .responseCode(AccountUtils.ACCOUNT_EXISTS_CODE)
-				  .accountInfor(null)
+				  .accountInfo(null)
 				  .build();
 		}
 
@@ -61,7 +61,7 @@ public class UzerService implements IUzerService{
 		return BankResponse.builder()
 			  .responseMessage(AccountUtils.ACCOUNT_CREATION_SUCCESS_MESSAGE)
 			  .responseCode(AccountUtils.ACCOUNT_CREATION_SUCCESS_CODE)
-			  .accountInfor(AccountInfo.builder()
+			  .accountInfo(AccountInfo.builder()
 				    .accountBalance(newUser.getAccountBalance())
 				    .accountNumber(newUser.getAccountNumber())
 				    .accountName(newUser.getFirstName()+ " " + newUser.getLastName()+ " " + newUser.getOtherName())
@@ -77,14 +77,14 @@ public class UzerService implements IUzerService{
 			return BankResponse.builder()
 				  .responseCode(AccountUtils.ACCOUNT_NOT_EXISTS_CODE)
 				  .responseMessage(AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE)
-				  .accountInfor(null)
+				  .accountInfo(null)
 				  .build();
 		}
 		Uzer foundedUser = userRepository.findByAccountNumber(request.getAccountNumber());
 		return BankResponse.builder()
 			  .responseCode(AccountUtils.ACCOUNT_FOUND_CODE)
 			  .responseMessage(AccountUtils.ACCOUNT_FOUND_MESSAGE)
-			  .accountInfor(AccountInfo.builder()
+			  .accountInfo(AccountInfo.builder()
 				    .accountName(foundedUser.getFirstName() + " " + foundedUser.getLastName()+ " " + foundedUser.getOtherName())
 				    .accountNumber(foundedUser.getAccountNumber())
 				    .accountBalance(foundedUser.getAccountBalance())
@@ -110,7 +110,7 @@ public class UzerService implements IUzerService{
 			return BankResponse.builder()
 				  .responseCode(AccountUtils.ACCOUNT_NOT_EXISTS_CODE)
 				  .responseMessage(AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE)
-				  .accountInfor(null)
+				  .accountInfo(null)
 				  .build();
 		}
 
@@ -121,7 +121,7 @@ public class UzerService implements IUzerService{
 		return BankResponse.builder()
 			  .responseCode(AccountUtils.ACCOUNT_CREDITED_SUCCESS_CODE)
 			  .responseMessage(AccountUtils.ACCOUNT_CREDITED_SUCCESS_MESSAGE)
-			  .accountInfor(AccountInfo.builder()
+			  .accountInfo(AccountInfo.builder()
 				    .accountName(userToCredit.getFirstName() + " " + userToCredit.getLastName()+ " " + userToCredit.getOtherName())
 				    .accountNumber(userToCredit.getAccountNumber())
 				    .accountBalance(userToCredit.getAccountBalance())
@@ -137,7 +137,7 @@ public class UzerService implements IUzerService{
 			return BankResponse.builder()
 				  .responseCode(AccountUtils.ACCOUNT_NOT_EXISTS_CODE)
 				  .responseMessage(AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE)
-				  .accountInfor(null)
+				  .accountInfo(null)
 				  .build();
 		}
 
@@ -149,7 +149,7 @@ public class UzerService implements IUzerService{
 			return BankResponse.builder()
 				  .responseCode(AccountUtils.INSUFFICIENT_BALANCES_CODE)
 				  .responseMessage(AccountUtils.INSUFFICIENT_BALANCES_MESSAGE)
-				  .accountInfor(null)
+				  .accountInfo(null)
 				  .build();
 		} else {
 			userToDebit.setAccountBalance(userToDebit.getAccountBalance().subtract(request.getAmount()));
@@ -157,13 +157,72 @@ public class UzerService implements IUzerService{
 			return BankResponse.builder()
 				  .responseCode(AccountUtils.ACCOUNT_DEBITED_SUCCESS_CODE)
 				  .responseMessage(AccountUtils.ACCOUNT_DEBITED_SUCCESS_MESSAGE)
-				  .accountInfor(AccountInfo.builder()
+				  .accountInfo(AccountInfo.builder()
 					    .accountNumber(request.getAccountNumber())
 					    .accountName(userToDebit.getFirstName() + " " + userToDebit.getLastName()+ " " + userToDebit.getOtherName())
 					    .accountBalance(userToDebit.getAccountBalance())
 					    .build())
 				  .build();
 		}
+
+	}
+
+	@Override
+	public BankResponse transfer(TransferRequest request) {
+		//get the account to debit
+		//check if the amount I'm debiting is not more than current balance
+		//debit the account
+		//get the account to credit
+		// the account
+
+		boolean isDestinationAccountExists = userRepository.existsByAccountNumber(request.getDestinationAccountNumber());
+		if (!isDestinationAccountExists) {
+			return BankResponse.builder()
+				  .responseCode(AccountUtils.ACCOUNT_NOT_EXISTS_CODE)
+				  .responseMessage(AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE)
+				  .accountInfo(null)
+				  .build();
+		}
+
+		Uzer sourceAccountUser = userRepository.findByAccountNumber(request.getSourceAccountNumber());
+		if (request.getAmount().compareTo(sourceAccountUser.getAccountBalance()) < 0) {
+			return BankResponse.builder()
+				  .responseCode(AccountUtils.INSUFFICIENT_BALANCES_CODE)
+				  .responseMessage(AccountUtils.INSUFFICIENT_BALANCES_MESSAGE)
+				  .accountInfo(null)
+				  .build();
+		}
+
+		sourceAccountUser.setAccountBalance(sourceAccountUser.getAccountBalance().subtract(request.getAmount()));
+		String sourceUsername = sourceAccountUser.getFirstName() + " " + sourceAccountUser.getLastName() + " " + sourceAccountUser.getOtherName();
+
+		sourceAccountUser = userRepository.save(sourceAccountUser);
+		EmailDetails debitAlert = EmailDetails.builder()
+			  .subject("Debit alert")
+			  .recipient(sourceAccountUser.getEmail())
+			  .messageBody("The sum of " + request.getAmount() + " has been deducted from your account! Your current " +
+				    "balance is " + sourceAccountUser.getAccountBalance())
+			  .build();
+
+		emailService.sendEmailAlert(debitAlert);
+
+		Uzer destinationAccountUser = userRepository.findByAccountNumber(request.getDestinationAccountNumber());
+		destinationAccountUser.setAccountBalance(destinationAccountUser.getAccountBalance().add(request.getAmount()));
+		String recipientUsername = destinationAccountUser.getFirstName() + " " + destinationAccountUser.getLastName() + " " + destinationAccountUser.getOtherName();
+		destinationAccountUser = userRepository.save(destinationAccountUser);
+		EmailDetails creditAlert = EmailDetails.builder()
+			  .subject("Credit alert")
+			  .recipient(sourceAccountUser.getEmail())
+			  .messageBody("The sum of " + request.getAmount() + " has been sent to your account from " + sourceUsername +
+				    " your current balance is: " + sourceAccountUser.getAccountBalance())
+			  .build();
+		emailService.sendEmailAlert(creditAlert);
+
+		return BankResponse.builder()
+			  .responseCode(AccountUtils.TRANSFER_SUCCESS_CODE)
+			  .responseMessage(AccountUtils.TRANSFER_SUCCESS_MESSAGE)
+			  .accountInfo(null)
+			  .build();
 
 	}
 
