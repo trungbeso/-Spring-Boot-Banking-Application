@@ -1,9 +1,6 @@
 package com.trungbeso.services;
 
-import com.trungbeso.dtos.BankResponse;
-import com.trungbeso.dtos.CreditDebitRequest;
-import com.trungbeso.dtos.EnquiryRequest;
-import com.trungbeso.dtos.UzerCreateRequest;
+import com.trungbeso.dtos.*;
 
 public interface IUzerService {
 	BankResponse create(UzerCreateRequest request);
@@ -15,4 +12,6 @@ public interface IUzerService {
 	BankResponse creditAccount(CreditDebitRequest request);
 
 	BankResponse debitAccount(CreditDebitRequest request);
+
+	BankResponse transfer(TransferRequest request);
 }
