@@ -7,4 +7,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface IUzerRepository extends JpaRepository<Uzer, Long> {
 	boolean existsUzerByEmail(String email);
+
+	boolean existsByAccountNumber(String accountNumber);
+
+	Uzer findByAccountNumber(String accountNumber);
 }

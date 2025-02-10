@@ -1,9 +1,6 @@
 package com.trungbeso.services;
 
-import com.trungbeso.dtos.AccountInfo;
-import com.trungbeso.dtos.BankResponse;
-import com.trungbeso.dtos.EmailDetails;
-import com.trungbeso.dtos.UzerCreateRequest;
+import com.trungbeso.dtos.*;
 import com.trungbeso.entities.Uzer;
 import com.trungbeso.repositories.IUzerRepository;
 import com.trungbeso.utils.AccountUtils;
@@ -13,6 +10,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE,makeFinal=true)
@@ -70,4 +68,104 @@ public class UzerService implements IUzerService{
 				    .build())
 			  .build();
 	}
+	//balance Enquiry, name Enquiry, credit, debit, transfer
+	@Override
+	public BankResponse balanceEnquiry(EnquiryRequest request) {
+		//check if the provider account number exists in databse
+		boolean isAccountExists = userRepository.existsByAccountNumber(request.getAccountNumber());
+		if (!isAccountExists) {
+			return BankResponse.builder()
+				  .responseCode(AccountUtils.ACCOUNT_NOT_EXISTS_CODE)
+				  .responseMessage(AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE)
+				  .accountInfor(null)
+				  .build();
+		}
+		Uzer foundedUser = userRepository.findByAccountNumber(request.getAccountNumber());
+		return BankResponse.builder()
+			  .responseCode(AccountUtils.ACCOUNT_FOUND_CODE)
+			  .responseMessage(AccountUtils.ACCOUNT_FOUND_MESSAGE)
+			  .accountInfor(AccountInfo.builder()
+				    .accountName(foundedUser.getFirstName() + " " + foundedUser.getLastName()+ " " + foundedUser.getOtherName())
+				    .accountNumber(foundedUser.getAccountNumber())
+				    .accountBalance(foundedUser.getAccountBalance())
+				    .build())
+			  .build();
+	}
+
+	@Override
+	public String nameEnquiry(EnquiryRequest request) {
+		boolean isAccountExists = userRepository.existsByAccountNumber(request.getAccountNumber());
+		if (!isAccountExists) {
+			return AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE;
+		}
+		Uzer foundedUser = userRepository.findByAccountNumber(request.getAccountNumber());
+		return foundedUser.getFirstName() + " " + foundedUser.getLastName() + " " + foundedUser.getOtherName();
+	}
+
+	@Override
+	public BankResponse creditAccount(CreditDebitRequest request) {
+		// check if the account exists
+		boolean isAccountExists = userRepository.existsByAccountNumber(request.getAccountNumber());
+		if (!isAccountExists) {
+			return BankResponse.builder()
+				  .responseCode(AccountUtils.ACCOUNT_NOT_EXISTS_CODE)
+				  .responseMessage(AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE)
+				  .accountInfor(null)
+				  .build();
+		}
+
+		Uzer userToCredit = userRepository.findByAccountNumber(request.getAccountNumber());
+		userToCredit.setAccountBalance(userToCredit.getAccountBalance().add(request.getAmount()));
+		userToCredit = userRepository.save(userToCredit);
+
+		return BankResponse.builder()
+			  .responseCode(AccountUtils.ACCOUNT_CREDITED_SUCCESS_CODE)
+			  .responseMessage(AccountUtils.ACCOUNT_CREDITED_SUCCESS_MESSAGE)
+			  .accountInfor(AccountInfo.builder()
+				    .accountName(userToCredit.getFirstName() + " " + userToCredit.getLastName()+ " " + userToCredit.getOtherName())
+				    .accountNumber(userToCredit.getAccountNumber())
+				    .accountBalance(userToCredit.getAccountBalance())
+				    .build())
+			  .build();
+	}
+
+	@Override
+	public BankResponse debitAccount(CreditDebitRequest request) {
+		//check account exists
+		boolean isAccountExists = userRepository.existsByAccountNumber(request.getAccountNumber());
+		if (!isAccountExists) {
+			return BankResponse.builder()
+				  .responseCode(AccountUtils.ACCOUNT_NOT_EXISTS_CODE)
+				  .responseMessage(AccountUtils.ACCOUNT_NOT_EXISTS_MESSAGE)
+				  .accountInfor(null)
+				  .build();
+		}
+
+		//check if the amount you intend to withdraw not more than the current balance
+		Uzer userToDebit = userRepository.findByAccountNumber(request.getAccountNumber());
+		BigInteger availableBalance = userToDebit.getAccountBalance().toBigInteger();
+		BigInteger debitAmount = request.getAmount().toBigInteger();
+		if (availableBalance.intValue() < debitAmount.intValue()) {
+			return BankResponse.builder()
+				  .responseCode(AccountUtils.INSUFFICIENT_BALANCES_CODE)
+				  .responseMessage(AccountUtils.INSUFFICIENT_BALANCES_MESSAGE)
+				  .accountInfor(null)
+				  .build();
+		} else {
+			userToDebit.setAccountBalance(userToDebit.getAccountBalance().subtract(request.getAmount()));
+			userToDebit = userRepository.save(userToDebit);
+			return BankResponse.builder()
+				  .responseCode(AccountUtils.ACCOUNT_DEBITED_SUCCESS_CODE)
+				  .responseMessage(AccountUtils.ACCOUNT_DEBITED_SUCCESS_MESSAGE)
+				  .accountInfor(AccountInfo.builder()
+					    .accountNumber(request.getAccountNumber())
+					    .accountName(userToDebit.getFirstName() + " " + userToDebit.getLastName()+ " " + userToDebit.getOtherName())
+					    .accountBalance(userToDebit.getAccountBalance())
+					    .build())
+				  .build();
+		}
+
+	}
+
+
 }
