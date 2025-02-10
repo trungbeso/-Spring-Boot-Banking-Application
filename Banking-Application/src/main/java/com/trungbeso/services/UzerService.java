@@ -1,6 +1,7 @@
 package com.trungbeso.services;
 
 import com.trungbeso.dtos.*;
+import com.trungbeso.entities.Transaction;
 import com.trungbeso.entities.Uzer;
 import com.trungbeso.repositories.IUzerRepository;
 import com.trungbeso.utils.AccountUtils;
@@ -19,6 +20,7 @@ public class UzerService implements IUzerService{
 
 	IUzerRepository userRepository;
 	IEmailService emailService;
+	ITransactionService transactionService;
 
 	@Override
 	public BankResponse create(UzerCreateRequest request) {
@@ -30,7 +32,6 @@ public class UzerService implements IUzerService{
 				  .accountInfo(null)
 				  .build();
 		}
-
 
 		Uzer newUser = Uzer.builder()
 			  .firstName(request.getFirstName())
@@ -118,6 +119,14 @@ public class UzerService implements IUzerService{
 		userToCredit.setAccountBalance(userToCredit.getAccountBalance().add(request.getAmount()));
 		userToCredit = userRepository.save(userToCredit);
 
+		//save transaction
+		TransactionDto transactionDto = TransactionDto.builder()
+			  .accountNumber(userToCredit.getAccountNumber())
+			  .transactionType("CREDIT")
+			  .amount(request.getAmount())
+			  .build();
+		transactionService.save(transactionDto);
+
 		return BankResponse.builder()
 			  .responseCode(AccountUtils.ACCOUNT_CREDITED_SUCCESS_CODE)
 			  .responseMessage(AccountUtils.ACCOUNT_CREDITED_SUCCESS_MESSAGE)
@@ -154,6 +163,14 @@ public class UzerService implements IUzerService{
 		} else {
 			userToDebit.setAccountBalance(userToDebit.getAccountBalance().subtract(request.getAmount()));
 			userToDebit = userRepository.save(userToDebit);
+			//save transaction
+			TransactionDto transactionDto = TransactionDto.builder()
+				  .accountNumber(userToDebit.getAccountNumber())
+				  .transactionType("DEBIT")
+				  .amount(request.getAmount())
+				  .build();
+			transactionService.save(transactionDto);
+
 			return BankResponse.builder()
 				  .responseCode(AccountUtils.ACCOUNT_DEBITED_SUCCESS_CODE)
 				  .responseMessage(AccountUtils.ACCOUNT_DEBITED_SUCCESS_MESSAGE)
@@ -217,6 +234,13 @@ public class UzerService implements IUzerService{
 				    " your current balance is: " + sourceAccountUser.getAccountBalance())
 			  .build();
 		emailService.sendEmailAlert(creditAlert);
+		//save transaction
+		TransactionDto transactionDto = TransactionDto.builder()
+			  .accountNumber("Source Account: " + sourceAccountUser.getAccountNumber() + "\n Destination Account: " + destinationAccountUser.getAccountNumber())
+			  .transactionType("Transfer")
+			  .amount(request.getAmount())
+			  .build();
+		transactionService.save(transactionDto);
 
 		return BankResponse.builder()
 			  .responseCode(AccountUtils.TRANSFER_SUCCESS_CODE)
