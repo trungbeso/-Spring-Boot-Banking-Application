@@ -23,6 +23,8 @@ public class UzerCreateRequest {
 
 	String email;
 
+	String password;
+
 	String phoneNumber;
 
 	String alternativePhoneNumber;

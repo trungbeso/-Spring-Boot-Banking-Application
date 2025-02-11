@@ -19,6 +19,13 @@ public class UserController {
 
 	IUzerService userService;
 
+	@Operation(summary = "Login to system", description = "Using email and password to login")
+	@ApiResponse(responseCode = "login successful", description = "Http status 200 OK")
+	@PostMapping("/login")
+	public BankResponse login (@RequestBody LoginRequestDto requestDto) {
+		return userService.login(requestDto);
+	}
+
 	@Operation(summary = "Create new user account", description = "Creating a new user and assigning an account ID")
 	@ApiResponse(responseCode = "201", description = "Http Status 201 CREATED")
 	@PostMapping
