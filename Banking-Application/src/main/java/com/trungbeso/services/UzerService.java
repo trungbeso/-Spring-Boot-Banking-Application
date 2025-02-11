@@ -1,13 +1,18 @@
 package com.trungbeso.services;
 
+import com.trungbeso.configuration.JwtTokenProvider;
 import com.trungbeso.dtos.*;
-import com.trungbeso.entities.Transaction;
+import com.trungbeso.entities.Role;
 import com.trungbeso.entities.Uzer;
 import com.trungbeso.repositories.IUzerRepository;
 import com.trungbeso.utils.AccountUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,6 +26,9 @@ public class UzerService implements IUzerService{
 	IUzerRepository userRepository;
 	IEmailService emailService;
 	ITransactionService transactionService;
+	PasswordEncoder passwordEncoder;
+	AuthenticationManager authenticationManager;
+	JwtTokenProvider jwtTokenProvider;
 
 	@Override
 	public BankResponse create(UzerCreateRequest request) {
@@ -40,9 +48,11 @@ public class UzerService implements IUzerService{
 			  .address(request.getAddress())
 			  .stateOfOrigin(request.getStateOfOrigin())
 			  .email(request.getEmail())
+			  .password(passwordEncoder.encode(request.getPassword()))
 			  .phoneNumber(request.getPhoneNumber())
 			  .alternativePhoneNumber(request.getAlternativePhoneNumber())
 			  .status("ACTIVE")
+			  .role(Role.ADMIN)
 			  .accountNumber(AccountUtils.generateAccountNumber())
 			  .accountBalance(BigDecimal.ZERO)
 			  .build();
@@ -69,10 +79,25 @@ public class UzerService implements IUzerService{
 				    .build())
 			  .build();
 	}
+
+	@Override
+	public BankResponse login(LoginRequestDto requestDto) {
+		Authentication authentication = null;
+		authentication = authenticationManager.authenticate(
+			  new UsernamePasswordAuthenticationToken(requestDto.getEmail(), requestDto.getPassword())
+		);
+		return BankResponse.builder()
+			  .responseCode("Login Successful")
+			  .responseMessage(jwtTokenProvider.generateToken(authentication))
+			  .build();
+	}
+
+
+
 	//balance Enquiry, name Enquiry, credit, debit, transfer
 	@Override
 	public BankResponse balanceEnquiry(EnquiryRequest request) {
-		//check if the provider account number exists in databse
+		//check if the provider account number exists in database
 		boolean isAccountExists = userRepository.existsByAccountNumber(request.getAccountNumber());
 		if (!isAccountExists) {
 			return BankResponse.builder()
